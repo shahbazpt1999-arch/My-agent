@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout: one-column phone app — header, quick ask box, project chips, task list, bottom sheet */
+  --bg:#f3f4f8; --surface:#ffffff; --ink:#151a2d; --muted:#5d6480;
+  --line:#dfe2ec; --accent:#e0961b; --accent-ink:#1a1405; --brand:#22305e;
+  --display:'Sora',system-ui,sans-serif; --body:'Figtree',system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1220; --surface:#181c30; --ink:#eef0f7; --muted:#9aa1bd;
+  --line:#2a3050; --accent:#f0a93a; --accent-ink:#1a1405; --brand:#9fb2ff; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0f1220; --surface:#181c30; --ink:#eef0f7; --muted:#9aa1bd;
+  --line:#2a3050; --accent:#f0a93a; --accent-ink:#1a1405; --brand:#9fb2ff; color-scheme:dark;}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 var(--body);-webkit-font-smoothing:antialiased}
+.wrap{max-width:560px;margin:0 auto;padding:20px 16px 48px;display:flex;flex-direction:column;gap:18px}
+header{display:flex;align-items:center;gap:12px}
+.logo{width:44px;height:44px;border-radius:12px;background:var(--brand);display:grid;place-items:center;flex:none}
+.logo svg{width:24px;height:24px}
+h1{font:700 22px/1.1 var(--display);margin:0;text-wrap:balance}
+.sub{color:var(--muted);font-size:14px;margin:2px 0 0}
+.ask{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.ask label{font-weight:600;font-size:14px}
+textarea{width:100%;min-height:76px;resize:vertical;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font:inherit;color:var(--ink);background:var(--bg)}
+textarea:focus,button:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{appearance:none;border:0;border-radius:12px;padding:11px 16px;font:600 15px var(--body);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);flex:1}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:8px 14px;font:500 14px var(--body);cursor:pointer;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--surface)}
+section h2{font:600 16px var(--display);margin:0 0 4px;display:flex;align-items:center;gap:8px}
+section h2 .dot{width:10px;height:10px;border-radius:3px;background:var(--c)}
+section .note{color:var(--muted);font-size:13px;margin:0 0 10px}
+.list{display:flex;flex-direction:column;gap:8px}
+.task{display:flex;align-items:stretch;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:12px;overflow:hidden}
+.task button.go{flex:1;text-align:left;background:none;border:0;padding:12px 12px;font:500 15px var(--body);color:var(--ink);cursor:pointer}
+.task button.star{background:none;border:0;border-left:1px solid var(--line);width:46px;cursor:pointer;color:var(--muted);font-size:18px}
+.task button.star[aria-pressed="true"]{color:var(--accent)}
+.empty{color:var(--muted);font-size:14px;padding:8px 2px}
+.groups{display:flex;flex-direction:column;gap:22px}
+footer{color:var(--muted);font-size:13px;text-align:center}
+/* bottom sheet */
+.scrim{position:fixed;inset:0;background:rgba(10,12,25,.45);display:none;align-items:flex-end;justify-content:center;z-index:10}
+.scrim.open{display:flex}
+.sheet{background:var(--surface);width:100%;max-width:560px;border-radius:20px 20px 0 0;padding:18px 16px 22px;display:flex;flex-direction:column;gap:12px;max-height:90%;overflow:auto}
+.sheet h3{margin:0;font:600 17px var(--display)}
+.sheet .tag{font-size:13px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#f0a93a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5.2L20 9l-4 4 1 5.6L12 16l-5 2.6L8 13 4 9l5.6-.8z"/></svg>
+    </div>
+    <div>
+      <h1>My Agent</h1>
+      <p class="sub">Shahbaz's projects — tap a task, Claude does it</p>
+    </div>
+  </header>
+
+  <div class="ask">
+    <label for="custom">Ask anything</label>
+    <textarea id="custom" placeholder="e.g. Write 3 articles about interest rates for my website"></textarea>
+    <div class="row">
+      <a class="btn primary" id="customSend" href="#" target="_blank" rel="noopener">Send to Claude</a>
+      <button class="btn ghost" id="customCopy" type="button">Copy</button>
+    </div>
+  </div>
+
+  <div class="chips" id="chips" role="toolbar" aria-label="Filter by project"></div>
+  <div class="groups" id="groups"></div>
+
+  <footer>Every task starts with "Use my agent", so Claude loads your all-in-one assistant skill.<br>If Send doesn't open Claude, tap Copy and paste it into a new chat.</footer>
+</div>
+
+<div class="scrim" id="scrim" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="sheet">
+    <div>
+      <h3 id="sheetTitle">Task</h3>
+      <div class="tag" id="sheetTag"></div>
+    </div>
+    <label for="sheetText" class="tag">Edit before sending if you like</label>
+    <textarea id="sheetText" style="min-height:130px"></textarea>
+    <div class="row">
+      <a class="btn primary" id="sheetSend" href="#" target="_blank" rel="noopener">Send to Claude</a>
+      <button class="btn ghost" id="sheetCopy" type="button">Copy</button>
+    </div>
+    <button class="btn ghost" id="sheetClose" type="button">Close</button>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const PROJECTS = [
+  {id:"web", name:"CapitalScope", c:"#2f7de1", note:"capitalscopes.com · finance blog", tasks:[
+    "Write 3 SEO articles on this week's trending finance and banking topics and publish them as drafts",
+    "Run a full SEO health check on capitalscopes.com and fix the top problems",
+    "Find 10 low-competition keywords I can rank for, with an article title for each",
+    "Check the site's speed and light theme on mobile and fix anything broken",
+  ]},
+  {id:"post", name:"PostCrew", c:"#8a5cf0", note:"AI social media agent · post-crew.vercel.app", tasks:[
+    "Continue building PostCrew: look at the repo and build the next most important feature",
+    "Set up Stripe monthly subscriptions in PostCrew and tell me exactly what I need to tap",
+    "Test post-crew.vercel.app like a real customer and fix every bug you find",
+    "Write the landing page copy and pricing plans to sell PostCrew",
+  ]},
+  {id:"quran", name:"Noor Quran", c:"#1f9e74", note:"Multilingual Quran app", tasks:[
+    "Continue Noor Quran: add the next most-needed feature and push it live",
+    "Add more translation languages to Noor Quran",
+    "Test Noor Quran on mobile and fix any bugs in audio, translation or speech commands",
+    "Prepare Noor Quran for publishing: store listing, screenshots text and privacy policy",
+  ]},
+  {id:"cut", name:"Cutline", c:"#e2553d", note:"Android video editor", tasks:[
+    "Continue Cutline: build the next editing feature",
+    "Build a Cutline APK I can download and install on my phone",
+    "Prepare the Google Play Store listing for Cutline",
+  ]},
+  {id:"yt", name:"YouTube", c:"#d6336c", note:"How it's made · satisfying videos", tasks:[
+    "Find 10 trending 'how it's made' video ideas that are getting lots of views right now",
+    "Write a satisfying 'how it's made' Shorts script with scene-by-scene visuals",
+    "Give me 5 titles and thumbnail ideas for my next video",
+    "Make a step-by-step plan to start my channel: name, branding and first 10 videos",
+  ]},
+  {id:"shop", name:"Humaira's Attire", c:"#c27c0e", note:"Shopify · women's clothing Pakistan", tasks:[
+    "Write product descriptions and SEO titles for my latest products",
+    "Create a discount campaign for my store with the discount code and social posts",
+    "Show me this week's sales and what's selling best",
+    "Write 7 days of Instagram posts for my lawn and ready-to-wear collections",
+  ]},
+  {id:"kids", name:"Kids Game", c:"#0e9bb5", note:"Brainy Playground", tasks:[
+    "Continue the kids learning game: add the next level",
+    "Turn my kids game prototypes into one full playable game",
+  ]},
+  {id:"avatar", name:"AI Avatar", c:"#6b7280", note:"Urdu digital twin · HeyGen", tasks:[
+    "Write a casual Urdu script for my AI avatar's first video",
+    "Help me set up my AI avatar in HeyGen step by step on my phone",
+  ]},
+  {id:"daily", name:"Daily", c:"#22305e", note:"Across all projects", tasks:[
+    "Give me today's plan: the one most useful thing to do on each project",
+    "Set up a scheduled task that sends me trending YouTube ideas and finance article topics every morning",
+    "Check all my projects and tell me what's broken or unfinished",
+  ]},
+];
+
+const prefix = (p) => `Use my agent (all-in-one-assistant skill) — ${p}: `;
+const claudeLink = (text) => "https://claude.ai/new?q=" + encodeURIComponent(text);
+
+let stars = [];
+try { stars = JSON.parse(localStorage.getItem("myagent-stars") || "[]"); } catch(e) { stars = []; }
+const saveStars = () => { try { localStorage.setItem("myagent-stars", JSON.stringify(stars)); } catch(e) {} };
+
+let filter = "all";
+const $ = (id) => document.getElementById(id);
+
+function renderChips(){
+  const items = [{id:"all",name:"All"},{id:"fav",name:"★ Saved"}, ...PROJECTS];
+  $("chips").innerHTML = "";
+  items.forEach(p => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.type = "button"; b.textContent = p.name;
+    b.setAttribute("aria-pressed", String(filter === p.id));
+    b.onclick = () => { filter = p.id; renderChips(); renderGroups(); };
+    $("chips").appendChild(b);
+  });
+}
+
+function taskRow(p, t){
+  const key = p.id + "|" + t;
+  const row = document.createElement("div");
+  row.className = "task"; row.style.setProperty("--c", p.c);
+  const go = document.createElement("button");
+  go.className = "go"; go.type = "button"; go.textContent = t;
+  go.onclick = () => openSheet(p, t);
+  const st = document.createElement("button");
+  st.className = "star"; st.type = "button";
+  const on = stars.includes(key);
+  st.setAttribute("aria-pressed", String(on));
+  st.setAttribute("aria-label", on ? "Remove from saved" : "Save task");
+  st.textContent = on ? "★" : "☆";
+  st.onclick = () => {
+    stars = stars.includes(key) ? stars.filter(k => k !== key) : [...stars, key];
+    saveStars(); renderGroups();
+  };
+  row.append(go, st);
+  return row;
+}
+
+function renderGroups(){
+  const g = $("groups"); g.innerHTML = "";
+  const list = filter === "all" || filter === "fav" ? PROJECTS : PROJECTS.filter(p => p.id === filter);
+  let shown = 0;
+  list.forEach(p => {
+    const tasks = filter === "fav" ? p.tasks.filter(t => stars.includes(p.id + "|" + t)) : p.tasks;
+    if (!tasks.length) return;
+    const s = document.createElement("section"); s.style.setProperty("--c", p.c);
+    s.innerHTML = `<h2><span class="dot"></span>${p.name}</h2><p class="note">${p.note}</p>`;
+    const l = document.createElement("div"); l.className = "list";
+    tasks.forEach(t => l.appendChild(taskRow(p, t)));
+    s.appendChild(l); g.appendChild(s); shown++;
+  });
+  if (!shown) g.innerHTML = `<p class="empty">No saved tasks yet. Tap ☆ next to a task to save it here.</p>`;
+}
+
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 1800);
+}
+async function copy(text){
+  if (window.Android && window.Android.copy) { window.Android.copy(text); return; }
+  try { await navigator.clipboard.writeText(text); toast("Copied — paste it into Claude"); }
+  catch(e){ toast("Copy blocked — press and hold the text to copy"); }
+}
+
+function openSheet(p, t){
+  $("sheetTitle").textContent = t;
+  $("sheetTag").textContent = p.name;
+  $("sheetText").value = prefix(p.name) + t;
+  syncSheet();
+  $("scrim").classList.add("open");
+  $("sheetText").focus();
+}
+function syncSheet(){ $("sheetSend").href = claudeLink($("sheetText").value); }
+$("sheetText").addEventListener("input", syncSheet);
+$("sheetCopy").onclick = () => copy($("sheetText").value);
+$("sheetClose").onclick = () => $("scrim").classList.remove("open");
+$("scrim").addEventListener("click", e => { if (e.target === $("scrim")) $("scrim").classList.remove("open"); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") $("scrim").classList.remove("open"); });
+
+function customText(){
+  const v = $("custom").value.trim();
+  return v ? "Use my agent (all-in-one-assistant skill): " + v : "";
+}
+function syncCustom(){ $("customSend").href = customText() ? claudeLink(customText()) : "https://claude.ai/new"; }
+$("custom").addEventListener("input", syncCustom);
+$("customCopy").onclick = () => { const t = customText(); t ? copy(t) : toast("Type a task first"); };
+
+renderChips(); renderGroups(); syncCustom();
+</script>
+</body>
+</html>
